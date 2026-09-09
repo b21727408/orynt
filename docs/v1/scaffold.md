@@ -16,8 +16,9 @@ orynt/
 ├── package.json                 # optional root scripts only if useful
 ├── pnpm-workspace.yaml
 ├── .github/
-│   └── workflows/
-│       └── ci.yml
+│   ├── workflows/
+│   │   └── ci.yml
+│   └── PULL_REQUEST_TEMPLATE.md
 │
 ├── crates/
 │   ├── core/
@@ -358,3 +359,18 @@ JSON/structured fixtures + Rust tests are enough until proven otherwise.
 - do not use floating dependency versions in production code
 
 The exact tested versions are chosen when scaffold is generated, not guessed in this document.
+
+
+## 12. Repository governance
+
+Milestone 0 creates the repository mechanics described in `development-workflow.md`:
+
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- GitHub Actions CI
+- documented branch/commit/PR conventions
+
+Configure branch protection/ruleset after the first CI run establishes stable required-check names.
+
+`main` remains PR-only.
+
+Do not create a custom branch/commit checker at scaffold time. Automate naming enforcement only if repeated violations prove it is needed.

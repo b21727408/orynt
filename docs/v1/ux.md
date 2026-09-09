@@ -677,3 +677,25 @@ Ana UI sans-serif; technical IDs/metrics için monospace kullanılabilir.
 - elaborate dashboard analytics
 
 Bunlar mimariyi bozmadan daha sonra eklenebilir.
+
+
+---
+
+## Design-system discipline
+
+Orynt should look coherent as features accumulate.
+
+Tailwind + shadcn/ui are implementation tools; feature code should prefer semantic application components/tokens over one-off styling.
+
+At minimum, establish shared semantics for:
+
+- active/running
+- completed/healthy
+- attention/waiting
+- failed/dangerous
+- idle
+- MasterMind/supervision
+
+Spacing, typography, surface hierarchy, focus states, and interaction affordances should remain consistent.
+
+Do not create a large standalone design-system package in V1 unless real reuse pressure justifies it.

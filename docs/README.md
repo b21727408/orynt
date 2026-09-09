@@ -38,10 +38,16 @@ docs/
     ├── ux.md
     ├── scaffold.md
     ├── quality.md
+    ├── security.md
+    ├── development-workflow.md
     └── implementation-plan.md
 ```
 
 ## Foundation decisions
+
+- Repository coding agents treat `AGENTS.md`, `FOUNDATION.md`, and `docs/**` as read-only.
+- Important undocumented product/architecture/security decisions require an explicit user decision before implementation.
+- `main` is PR-only; direct implementation commits/pushes are forbidden.
 
 V1 için temel kararlar:
 

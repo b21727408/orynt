@@ -542,3 +542,11 @@ V1 is developed with an enterprise-grade baseline from the start:
 The principle is:
 
 > **Use standard tools for standard problems; write Orynt-specific tests for Orynt-specific risks.**
+
+
+### Repository governance
+
+- `main` is PR-only; no direct implementation commits/pushes.
+- Codex works on `codex/...` branches and opens a PR.
+- Repository coding agents cannot modify `AGENTS.md`, `FOUNDATION.md`, or `docs/**`.
+- Important undocumented architectural/product/security decisions are escalated to the user before implementation.
