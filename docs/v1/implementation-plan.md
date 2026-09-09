@@ -29,7 +29,9 @@ Implement:
 - typed Tauri request/response proof
 - quality tooling from `quality.md`
 - CI
-- repository docs + `AGENTS.md`
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- repository workflow conventions from `development-workflow.md`
+- repository docs + `AGENTS.md` already present and read-only to Codex
 
 Do **not** implement:
 
@@ -40,6 +42,12 @@ Do **not** implement:
 - Triage
 - policies
 - fake future ports/modules
+
+After the first CI run establishes stable check names:
+
+- configure GitHub ruleset/branch protection so `main` is PR-only
+- require the agreed CI checks
+- disable direct pushes/force pushes to `main`
 
 Demo:
 

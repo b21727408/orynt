@@ -631,3 +631,16 @@ Examples:
 - Company Hub → local/organization configuration boundary now
 
 > Implementations may be deferred. Expensive future refactors should not be created accidentally.
+
+
+## 20. Repository decision governance
+
+Architecture/product/security decisions in `docs/` are authoritative inputs to implementation.
+
+Repository coding agents are not allowed to edit documentation to resolve implementation friction.
+
+If a task requires a lasting decision not covered by the documents, implementation pauses and the user decides before code proceeds.
+
+Security trust boundaries are defined in `security.md`.
+
+Branch/commit/PR rules are defined in `development-workflow.md`.

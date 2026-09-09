@@ -387,3 +387,28 @@ Before an agent says a task is complete:
 8. verify no silent fallback/fake success
 9. summarize architecture impact
 10. state every new dependency and why it was required
+
+
+## 16. Documentation immutability for coding agents
+
+Repository coding agents may read but must not modify:
+
+```text
+AGENTS.md
+FOUNDATION.md
+docs/**
+```
+
+Documentation drift becomes a decision request to the user, not an agent-authored documentation edit.
+
+A Codex-authored PR must contain no documentation changes.
+
+## 17. UI consistency / anti-slop
+
+Tailwind/shadcn speed must not become one-off UI drift.
+
+Prefer semantic design tokens, reusable application components, shared status/severity vocabulary, and existing spacing/typography patterns.
+
+Avoid feature-local color systems, duplicated semantic component variants, and unrelated styling refactors.
+
+The first real UI milestone should establish a small semantic token/component baseline, not a large custom design-system package.
