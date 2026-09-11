@@ -1,0 +1,40 @@
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+unused-ignored-advisory = "deny"
+# Review all six exceptions on 2026-12-15. Keep global advisory policy unchanged.
+ignore = [
+    { id = "RUSTSEC-2024-0370", reason = "Transitive through the current Tauri 2 GTK graph; unmaintained, not a known vulnerability; no compatible patched replacement. Review 2026-12-15." },
+    { id = "RUSTSEC-2025-0075", reason = "Transitive through current Tauri 2 tauri-utils/urlpattern; unmaintained, not a known vulnerability; no compatible patched replacement. Review 2026-12-15." },
+    { id = "RUSTSEC-2025-0080", reason = "Transitive through current Tauri 2 tauri-utils/urlpattern; unmaintained, not a known vulnerability; no compatible patched replacement. Review 2026-12-15." },
+    { id = "RUSTSEC-2025-0081", reason = "Transitive through current Tauri 2 tauri-utils/urlpattern; unmaintained, not a known vulnerability; no compatible patched replacement. Review 2026-12-15." },
+    { id = "RUSTSEC-2025-0098", reason = "Transitive through current Tauri 2 tauri-utils/urlpattern; unmaintained, not a known vulnerability; no compatible patched replacement. Review 2026-12-15." },
+    { id = "RUSTSEC-2025-0100", reason = "Transitive through current Tauri 2 tauri-utils/urlpattern; unmaintained, not a known vulnerability; no compatible patched replacement. Review 2026-12-15." },
+]
+
+[licenses]
+version = 2
+allow = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unicode-3.0", "Zlib", "CC0-1.0"]
+# Explicitly approved for these required Tauri transitives only.
+exceptions = [
+    { name = "cssparser", version = "=0.36.0", allow = ["MPL-2.0"] },
+    { name = "cssparser-macros", version = "=0.6.1", allow = ["MPL-2.0"] },
+    { name = "dtoa-short", version = "=0.3.5", allow = ["MPL-2.0"] },
+    { name = "option-ext", version = "=0.2.0", allow = ["MPL-2.0"] },
+    { name = "selectors", version = "=0.36.1", allow = ["MPL-2.0"] },
+    { name = "target-lexicon", version = "=0.12.16", allow = ["Apache-2.0 WITH LLVM-exception"] },
+]
+
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

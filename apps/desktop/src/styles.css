@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+
+:root {
+  font-family: 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  color-scheme: light;
+  --background: #f6f7f9;
+  --foreground: #1c2738;
+  --card: #ffffff;
+  --muted: #f0f2f5;
+  --muted-foreground: #596779;
+  --border: #e0e5ec;
+  --primary: #253c59;
+  --primary-foreground: #ffffff;
+  --accent: #e9edf3;
+  --accent-foreground: #1c2738;
+  --sidebar: #f9fafc;
+  --ring: #3468a4;
+  --active: #2c62a2;
+  --healthy: #23754a;
+  --attention: #915d0b;
+  --danger: #b53742;
+  --idle: #596779;
+  --supervision: #77509c;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-active: var(--active);
+  --color-healthy: var(--healthy);
+  --color-attention: var(--attention);
+  --color-danger: var(--danger);
+  --color-idle: var(--idle);
+  --color-supervision: var(--supervision);
+}
+
+@layer base {
+  body {
+    margin: 0;
+    min-width: 360px;
+    background: var(--background);
+    color: var(--foreground);
+  }
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:not(:disabled),
+  a {
+    cursor: pointer;
+  }
+}

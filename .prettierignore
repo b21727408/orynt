@@ -1,0 +1,9 @@
+AGENTS.md
+FOUNDATION.md
+docs/**
+Cargo.lock
+pnpm-lock.yaml
+target/
+node_modules/
+dist/
+apps/desktop/src-tauri/gen/

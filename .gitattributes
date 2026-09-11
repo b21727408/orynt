@@ -1,0 +1,13 @@
+/.gitattributes text eol=lf
+/.gitignore text eol=lf
+/.node-version text eol=lf
+/.prettierignore text eol=lf
+/*.json text eol=lf
+/*.toml text eol=lf
+/*.yaml text eol=lf
+/Cargo.lock text eol=lf
+/.github/** text eol=lf
+/apps/** text eol=lf
+/crates/** text eol=lf
+*.png binary
+*.ico binary

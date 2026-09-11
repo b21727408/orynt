@@ -1,0 +1,81 @@
+name: Foundation CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foundation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - run: pnpm install --frozen-lockfile
+      - run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install Tauri compile prerequisites
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev
+      - run: cargo fmt --all --check
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm knip
+      - run: pnpm build
+      - run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+
+  tests:
+    name: tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - run: pnpm install --frozen-lockfile
+      - run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install Tauri compile prerequisites
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev
+      - run: cargo install cargo-nextest --version 0.9.143 --locked
+      - run: pnpm test
+      - run: pnpm build
+      - run: cargo nextest run --locked --workspace
+      - run: cargo check --locked --workspace --all-targets --all-features
+      - run: cargo build --locked --workspace --all-features
+
+  dependencies:
+    name: dependencies
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - run: pnpm install --frozen-lockfile
+      - run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo install cargo-deny --version 0.20.2 --locked
+      - run: cargo install cargo-machete --version 0.9.2 --locked
+      - run: cargo deny --locked check
+      - run: cargo machete
+      - run: pnpm audit
