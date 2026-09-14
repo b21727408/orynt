@@ -23,6 +23,12 @@
   --supervision: #77509c;
 }
 
+@layer components {
+  .form-control {
+    @apply w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

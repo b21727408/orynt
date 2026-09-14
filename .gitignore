@@ -3,6 +3,8 @@ node_modules/
 dist/
 *.tsbuildinfo
 /apps/desktop/src-tauri/gen/
+/apps/desktop/playwright-report/
+/apps/desktop/test-results/
 *.sqlite3
 *.sqlite3-shm
 *.sqlite3-wal
