@@ -1,5 +1,8 @@
 //! SQLite bootstrap and readiness. SQL and migration records stay in this adapter.
 
+mod records;
+mod work;
+
 use std::{path::Path, time::Duration};
 
 use sqlx::{
@@ -19,6 +22,7 @@ pub enum StorageError {
     Readiness(#[source] sqlx::Error),
 }
 
+#[derive(Clone)]
 pub struct Database {
     pool: SqlitePool,
 }
@@ -39,7 +43,7 @@ impl Database {
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
             .acquire_timeout(Duration::from_secs(5))
-            .connect_with(options)
+            .connect_with(options.foreign_keys(true))
             .await
             .map_err(StorageError::Open)?;
         MIGRATOR.run(&pool).await.map_err(StorageError::Migration)?;
@@ -52,6 +56,11 @@ impl Database {
             .await
             .map_err(StorageError::Readiness)?;
         Ok(())
+    }
+
+    /// Closes all shared pool handles, including outstanding clones.
+    pub async fn close(&self) {
+        self.pool.close().await;
     }
 }
 
@@ -70,13 +79,13 @@ mod tests {
             sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations WHERE success = 1")
                 .fetch_one(&database.pool)
                 .await?;
-        assert_eq!(applied, 1);
+        assert_eq!(applied, 3);
         let product_tables: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name != '_sqlx_migrations'",
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != '_sqlx_migrations'",
         )
         .fetch_one(&database.pool)
         .await?;
-        assert_eq!(product_tables, 0);
+        assert_eq!(product_tables, 6);
         Ok(())
     }
 
@@ -108,7 +117,7 @@ mod tests {
         let retained: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations")
             .fetch_one(&database.pool)
             .await?;
-        assert_eq!(retained, 1);
+        assert_eq!(retained, 3);
         Ok(())
     }
 }

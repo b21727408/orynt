@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status-badge';
 import { useRuntimeHealth } from './use-runtime-health';
+import { WorkOverview } from './work-overview';
 
 export function Overview() {
   const health = useRuntimeHealth();
@@ -21,9 +22,10 @@ export function Overview() {
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">Overview</h1>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          A clear view of the foundation running on your device.
+          Your local Work, current execution, and preserved history.
         </p>
       </div>
+      <WorkOverview />
       <section
         id="runtime-health"
         tabIndex={-1}
@@ -132,11 +134,10 @@ export function Overview() {
         </div>
       </section>
       <div className="mt-7 flex items-start gap-3 px-1">
-        <StatusBadge>Milestone 0</StatusBadge>
+        <StatusBadge>Simulation</StatusBadge>
         <p className="pt-1 text-xs leading-relaxed text-muted-foreground">
-          This build establishes the desktop shell and local runtime connection.
-          <br />
-          Work execution will arrive in the next milestone.
+          Runs use deterministic stage simulation. No AI, code changes, or
+          verification are performed.
         </p>
       </div>
     </div>

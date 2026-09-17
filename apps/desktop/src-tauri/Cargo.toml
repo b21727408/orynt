@@ -16,8 +16,14 @@ tauri-build.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+orynt-core = { path = "../../../crates/core", version = "=0.1.0" }
+orynt-application = { path = "../../../crates/application", version = "=0.1.0" }
+orynt-runtime = { path = "../../../crates/runtime", version = "=0.1.0" }
 orynt-storage = { path = "../../../crates/storage", version = "=0.1.0" }
 serde.workspace = true
 tauri.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

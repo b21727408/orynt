@@ -42,7 +42,7 @@ jobs:
   tests:
     name: tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -55,11 +55,30 @@ jobs:
       - name: Install Tauri compile prerequisites
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev
       - run: cargo install cargo-nextest --version 0.9.143 --locked
+      - run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+      - run: rustup component add llvm-tools-preview
+      - run: pnpm --filter @orynt/desktop exec playwright install --with-deps chromium
       - run: pnpm test
       - run: pnpm build
       - run: cargo nextest run --locked --workspace
       - run: cargo check --locked --workspace --all-targets --all-features
       - run: cargo build --locked --workspace --all-features
+      - run: pnpm test:e2e
+      - name: Measure Rust coverage
+        run: |
+          mkdir -p target/coverage
+          cargo llvm-cov --locked --workspace --all-features --lcov --output-path target/coverage/lcov.info
+          cargo llvm-cov report --summary-only | tee target/coverage/summary.txt
+          cat target/coverage/summary.txt >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve UI evidence and coverage
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: milestone-1-verification
+          path: |
+            apps/desktop/playwright-report/
+            target/coverage/
+          retention-days: 14
 
   dependencies:
     name: dependencies

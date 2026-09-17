@@ -3,6 +3,8 @@ use orynt_storage::Database;
 use serde::Serialize;
 use tauri::{Manager, State};
 
+mod work;
+
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
 enum HealthStatus {
@@ -53,6 +55,7 @@ pub fn run() -> anyhow::Result<()> {
             let database =
                 tauri::async_runtime::block_on(Database::open(&data_dir.join("orynt.sqlite3")))
                     .context("database startup failed; existing database has not been reset")?;
+            app.manage(work::compose(database.clone(), app.handle().clone()));
             app.manage(database);
             tracing::info!(
                 version = env!("CARGO_PKG_VERSION"),
@@ -60,7 +63,13 @@ pub fn run() -> anyhow::Result<()> {
             );
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![runtime_health])
+        .invoke_handler(tauri::generate_handler![
+            runtime_health,
+            work::create_work,
+            work::list_work,
+            work::get_work_detail,
+            work::start_simulated_run
+        ])
         .run(tauri::generate_context!());
 
     result.map_err(|error| {

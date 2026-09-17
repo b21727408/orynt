@@ -11,8 +11,13 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { routes } from '@/app/routes';
 import { useShellState } from '@/app/shell/shell-state';
+import { listWork } from '@/lib/ipc/work';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(), isTauri: vi.fn() }));
+vi.mock('@/lib/ipc/work', () => ({ listWork: vi.fn() }));
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn().mockResolvedValue(() => {}),
+}));
 
 const healthy = { status: 'healthy', version: '0.1.0', database: 'ready' };
 
@@ -30,6 +35,7 @@ function renderApp() {
 beforeEach(() => {
   vi.mocked(isTauri).mockReturnValue(true);
   vi.mocked(invoke).mockReset();
+  vi.mocked(listWork).mockResolvedValue([]);
   useShellState.setState({ sidebarCollapsed: false });
 });
 
@@ -43,9 +49,11 @@ describe('foundation overview', () => {
     });
     vi.mocked(invoke).mockReturnValue(response);
     renderApp();
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Checking local runtime',
-    );
+    expect(
+      within(screen.getByRole('region', { name: 'Runtime health' })).getByRole(
+        'status',
+      ),
+    ).toHaveTextContent('Checking local runtime');
     expect(screen.getByRole('button', { name: 'Checking…' })).toBeDisabled();
     await act(async () => {
       resolveResponse(healthy);
@@ -54,7 +62,11 @@ describe('foundation overview', () => {
     expect(
       await screen.findByText('Your local foundation is ready'),
     ).toBeVisible();
-    expect(screen.getByText('Ready')).toBeVisible();
+    expect(
+      within(screen.getByRole('region', { name: 'Runtime health' })).getByText(
+        'Ready',
+      ),
+    ).toBeVisible();
     expect(screen.getByText('0.1.0')).toBeVisible();
     expect(invoke).toHaveBeenCalledWith('runtime_health');
   });

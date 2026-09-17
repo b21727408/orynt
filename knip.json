@@ -3,7 +3,7 @@
   "workspaces": {
     ".": {},
     "apps/desktop": {
-      "project": ["src/**/*.{ts,tsx,css}", "*.{ts,js}"]
+      "project": ["src/**/*.{ts,tsx,css}", "e2e/**/*.ts", "*.{ts,js}"]
     }
   }
 }

@@ -14,6 +14,7 @@
     "lint": "pnpm --filter @orynt/desktop lint",
     "typecheck": "pnpm --filter @orynt/desktop typecheck",
     "test": "pnpm --filter @orynt/desktop test",
+    "test:e2e": "pnpm --filter @orynt/desktop test:e2e",
     "knip": "knip",
     "build": "pnpm --filter @orynt/desktop build"
   },

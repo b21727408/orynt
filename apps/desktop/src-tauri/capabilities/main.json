@@ -1,7 +1,15 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "The local overview can request runtime health.",
+  "description": "The main window can inspect local work, start in-process simulations, and receive projection change notifications.",
   "windows": ["main"],
-  "permissions": ["allow-runtime-health"]
+  "permissions": [
+    "allow-runtime-health",
+    "allow-create-work",
+    "allow-list-work",
+    "allow-get-work-detail",
+    "allow-start-simulated-run",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
+  ]
 }

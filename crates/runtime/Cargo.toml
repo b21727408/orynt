@@ -7,3 +7,11 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+orynt-core = { path = "../core", version = "=0.1.0" }
+orynt-application = { path = "../application", version = "=0.1.0" }
+tokio.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

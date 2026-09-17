@@ -1,1 +1,3 @@
-//! The application architectural boundary. No product behavior in Milestone 0.
+//! Work use cases and the ports consumed by the local backbone.
+
+pub mod work;

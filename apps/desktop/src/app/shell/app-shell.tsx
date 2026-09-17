@@ -3,18 +3,21 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Monitor,
+  ListTodo,
 } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status-badge';
 import { cn } from '@/lib/classes';
 import { useRuntimeHealth } from '@/features/overview/use-runtime-health';
 import { useShellState } from './shell-state';
+import { RuntimeUpdates } from '@/features/work/runtime-updates';
 
 export function AppShell() {
   const collapsed = useShellState((state) => state.sidebarCollapsed);
   const toggleSidebar = useShellState((state) => state.toggleSidebar);
   const health = useRuntimeHealth();
+  const navigate = useNavigate();
 
   return (
     <div className="flex h-screen flex-col">
@@ -45,6 +48,7 @@ export function AppShell() {
           Local desktop
         </div>
       </header>
+      <RuntimeUpdates />
       <div className="flex min-h-0 flex-1">
         <aside
           className={cn(
@@ -79,30 +83,37 @@ export function AppShell() {
             </Button>
           </div>
           <nav id="primary-navigation" aria-label="Primary navigation">
-            <Button
-              asChild
-              variant="ghost"
-              className={cn(
-                'w-full bg-active/10 text-active hover:bg-active/15 hover:text-active',
-                !collapsed && 'justify-start',
-              )}
-              size={collapsed ? 'icon' : 'default'}
-            >
-              <NavLink to="/" end aria-label="Overview">
-                <LayoutDashboard aria-hidden="true" />
-                {!collapsed && 'Overview'}
+            {[
+              { to: '/', label: 'Overview', Icon: LayoutDashboard },
+              { to: '/work', label: 'Work', Icon: ListTodo },
+            ].map(({ to, label, Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/'}
+                aria-label={label}
+                className={({ isActive }) =>
+                  cn(
+                    'mb-1 flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
+                    collapsed && 'justify-center px-0',
+                    isActive && 'bg-active/10 text-active',
+                  )
+                }
+              >
+                <Icon className="size-4" aria-hidden="true" />
+                {!collapsed && label}
               </NavLink>
-            </Button>
+            ))}
           </nav>
           {!collapsed && (
             <div className="mt-auto px-2 pb-3 pt-10">
               <p className="text-xs font-medium text-muted-foreground">
-                FOUNDATION
+                LOCAL WORKBENCH
               </p>
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                A local foundation for
+                Work, execution and history
                 <br />
-                work you can inspect.
+                you can inspect.
               </p>
             </div>
           )}
@@ -120,7 +131,9 @@ export function AppShell() {
           href="#runtime-health"
           onClick={(event) => {
             event.preventDefault();
-            document.getElementById('runtime-health')?.focus();
+            const target = document.getElementById('runtime-health');
+            if (target) target.focus();
+            else void navigate('/');
           }}
           className="rounded focus-visible:outline-2 focus-visible:outline-ring"
         >
@@ -141,11 +154,11 @@ export function AppShell() {
           </StatusBadge>
         </a>
         <span>
-          Milestone 0{' '}
+          Milestone 1{' '}
           <span aria-hidden="true" className="px-2">
             /
           </span>{' '}
-          Foundation scaffold
+          Deterministic simulation
         </span>
       </footer>
     </div>
