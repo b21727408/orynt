@@ -79,7 +79,7 @@ mod tests {
             sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations WHERE success = 1")
                 .fetch_one(&database.pool)
                 .await?;
-        assert_eq!(applied, 2);
+        assert_eq!(applied, 3);
         let product_tables: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != '_sqlx_migrations'",
         )
@@ -117,7 +117,7 @@ mod tests {
         let retained: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations")
             .fetch_one(&database.pool)
             .await?;
-        assert_eq!(retained, 2);
+        assert_eq!(retained, 3);
         Ok(())
     }
 }

@@ -1,5 +1,5 @@
 use orynt_application::work::{
-    RepositoryError, RunDetail, WorkDetail, WorkRepository, WorkSummary,
+    RepositoryError, RunDetail, RunExecutionState, WorkDetail, WorkRepository, WorkSummary,
 };
 use orynt_core::{
     event::EventKind,
@@ -78,10 +78,10 @@ async fn touch(
     Ok(())
 }
 
-async fn load_run(
+async fn load_execution_state(
     transaction: &mut Transaction<'_, Sqlite>,
     run: Run,
-) -> Result<RunDetail, RepositoryError> {
+) -> Result<RunExecutionState, RepositoryError> {
     let plan = sqlx::query_as::<_, PlanRecord>("SELECT id, run_id, revision_number, created_at FROM execution_plan_revisions WHERE run_id = ? ORDER BY revision_number DESC LIMIT 1")
         .bind(run.id.to_string()).fetch_one(&mut **transaction).await.map_err(sql_error)?;
     let stages = sqlx::query_as::<_, StagePlanRecord>("SELECT position, stage_kind FROM stage_plans WHERE execution_plan_revision_id = ? ORDER BY position")
@@ -91,15 +91,7 @@ async fn load_run(
     let stages = sqlx::query_as::<_, StageRecord>("SELECT id, run_id, execution_plan_revision_id, stage_kind, status, started_at, completed_at, simulation_summary, failure FROM stage_executions WHERE run_id = ? ORDER BY started_at, id")
         .bind(run.id.to_string()).fetch_all(&mut **transaction).await.map_err(sql_error)?
         .into_iter().map(TryInto::try_into).collect::<Result<_, _>>()?;
-    let events = sqlx::query_as::<_, EventRecord>("SELECT id, sequence, work_item_id, run_id, occurred_at, kind, payload FROM events WHERE run_id = ? ORDER BY sequence")
-        .bind(run.id.to_string()).fetch_all(&mut **transaction).await.map_err(sql_error)?
-        .into_iter().map(TryInto::try_into).collect::<Result<_, _>>()?;
-    Ok(RunDetail {
-        run,
-        plan,
-        stages,
-        events,
-    })
+    Ok(RunExecutionState { run, plan, stages })
 }
 
 impl WorkRepository for Database {
@@ -155,13 +147,37 @@ impl WorkRepository for Database {
             .bind(id.to_string()).fetch_all(&mut *transaction).await.map_err(sql_error)?;
         let mut runs = Vec::with_capacity(rows.len());
         for row in rows {
-            runs.push(load_run(&mut transaction, row.try_into()?).await?);
+            let state = load_execution_state(&mut transaction, row.try_into()?).await?;
+            let events = sqlx::query_as::<_, EventRecord>("SELECT id, sequence, work_item_id, run_id, occurred_at, kind, payload FROM events WHERE run_id = ? ORDER BY sequence")
+                .bind(state.run.id.to_string()).fetch_all(&mut *transaction).await.map_err(sql_error)?
+                .into_iter().map(TryInto::try_into).collect::<Result<_, _>>()?;
+            runs.push(RunDetail {
+                run: state.run,
+                plan: state.plan,
+                stages: state.stages,
+                events,
+            });
         }
         let events = sqlx::query_as::<_, EventRecord>("SELECT id, sequence, work_item_id, run_id, occurred_at, kind, payload FROM events WHERE work_item_id = ? AND run_id IS NULL ORDER BY sequence")
             .bind(id.to_string()).fetch_all(&mut *transaction).await.map_err(sql_error)?
             .into_iter().map(TryInto::try_into).collect::<Result<_, _>>()?;
         transaction.commit().await.map_err(sql_error)?;
         Ok(WorkDetail { work, runs, events })
+    }
+
+    async fn get_run_execution_state(
+        &self,
+        work_item_id: WorkItemId,
+        run_id: RunId,
+    ) -> Result<RunExecutionState, RepositoryError> {
+        let mut transaction = self.pool.begin().await.map_err(sql_error)?;
+        let run = sqlx::query_as::<_, RunRecord>("SELECT id, work_item_id, status, created_at, started_at, completed_at FROM runs WHERE id = ? AND work_item_id = ?")
+            .bind(run_id.to_string()).bind(work_item_id.to_string())
+            .fetch_optional(&mut *transaction).await.map_err(sql_error)?
+            .ok_or(RepositoryError::NotFound("Run"))?.try_into()?;
+        let state = load_execution_state(&mut transaction, run).await?;
+        transaction.commit().await.map_err(sql_error)?;
+        Ok(state)
     }
 
     async fn create_run(

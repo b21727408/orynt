@@ -406,8 +406,238 @@ async fn migration_upgrades_bootstrap_database_in_place() -> TestResult {
         sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM _sqlx_migrations WHERE success = 1")
             .fetch_one(&database.pool)
             .await?,
-        2
+        3
     );
+    database.close().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn populated_milestone_one_history_survives_extensible_schema_upgrade() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("milestone-one.sqlite3");
+    let pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true)
+                .foreign_keys(true),
+        )
+        .await?;
+    let historical = sqlx::migrate::Migrator {
+        migrations: std::borrow::Cow::Owned(
+            crate::MIGRATOR
+                .iter()
+                .filter(|migration| migration.version <= 2)
+                .cloned()
+                .collect(),
+        ),
+        ..sqlx::migrate::Migrator::DEFAULT
+    };
+    historical.run(&pool).await?;
+    let database = Database { pool };
+    let app = application(&database, None);
+    let work = app
+        .create_work("Preserved history", "Upgrade populated M1 storage")
+        .await?;
+    let other_work = app.create_work("Other Work", "").await?;
+    for _ in 0..2 {
+        let run = app.start_simulated_run(work.id).await?;
+        app.execute_run_to_completion(work.id, run.id).await?;
+    }
+    let failed = app.start_simulated_run(work.id).await?;
+    assert!(matches!(
+        application(&database, Some(StageKind::Analysis))
+            .execute_run_to_completion(work.id, failed.id)
+            .await,
+        Err(ApplicationError::Execution(_))
+    ));
+    let running = app.start_simulated_run(work.id).await?;
+    let running_state = database
+        .get_run_execution_state(work.id, running.id)
+        .await?;
+    database
+        .begin_stage(&StageExecution {
+            id: orynt_core::ids::StageExecutionId::new(),
+            run_id: running.id,
+            execution_plan_revision_id: running_state.plan.id,
+            stage_kind: StageKind::Triage,
+            status: StageStatus::Running,
+            started_at: running.started_at,
+            completed_at: None,
+            result: None,
+            failure: None,
+        })
+        .await?;
+    let before = app.get_work_detail(work.id).await?;
+    let other_before = app.get_work_detail(other_work.id).await?;
+    let event_query = "SELECT sequence, id, work_item_id, run_id, occurred_at, kind, payload FROM events ORDER BY sequence";
+    type StoredEvent = (i64, String, String, Option<String>, i64, String, String);
+    let events_before = sqlx::query_as::<_, StoredEvent>(event_query)
+        .fetch_all(&database.pool)
+        .await?;
+    let migration_query =
+        "SELECT version, checksum FROM _sqlx_migrations WHERE version <= 2 ORDER BY version";
+    let checksums = sqlx::query_as::<_, (i64, Vec<u8>)>(migration_query)
+        .fetch_all(&database.pool)
+        .await?;
+    let index_query = "SELECT name, sql FROM sqlite_schema WHERE type = 'index' AND sql IS NOT NULL ORDER BY name";
+    let indexes = sqlx::query_as::<_, (String, String)>(index_query)
+        .fetch_all(&database.pool)
+        .await?;
+    // A retained sequence can exceed MAX(sequence), for example after deleted rows.
+    let high_water: i64 = sqlx::query_scalar(
+        "UPDATE sqlite_sequence SET seq = seq + 100 WHERE name = 'events' RETURNING seq",
+    )
+    .fetch_one(&database.pool)
+    .await?;
+    drop(app);
+    database.close().await;
+
+    let database = Database::open(&path).await?;
+    assert_eq!(database.get_work_detail(work.id).await?, before);
+    assert_eq!(database.get_work_detail(other_work.id).await?, other_before);
+    assert_eq!(
+        sqlx::query_as::<_, StoredEvent>(event_query)
+            .fetch_all(&database.pool)
+            .await?,
+        events_before
+    );
+    assert_eq!(
+        sqlx::query_as::<_, (i64, Vec<u8>)>(migration_query)
+            .fetch_all(&database.pool)
+            .await?,
+        checksums
+    );
+    assert_eq!(
+        sqlx::query_as::<_, (String, String)>(index_query)
+            .fetch_all(&database.pool)
+            .await?,
+        indexes
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM _sqlx_migrations WHERE success = 1")
+            .fetch_one(&database.pool)
+            .await?,
+        3
+    );
+    assert!(
+        sqlx::query("PRAGMA foreign_key_check")
+            .fetch_all(&database.pool)
+            .await?
+            .is_empty()
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, String>("PRAGMA integrity_check")
+            .fetch_one(&database.pool)
+            .await?,
+        "ok"
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("PRAGMA foreign_keys")
+            .fetch_one(&database.pool)
+            .await?,
+        1
+    );
+
+    // Probe future durable shapes without adding unsupported production EventKinds
+    // or implementing reruns. Every probe is rolled back before typed reads resume.
+    let mut transaction = database.pool.begin().await?;
+    let sequence: i64 = sqlx::query_scalar("INSERT INTO events(id, work_item_id, run_id, occurred_at, kind, payload) VALUES (?, ?, NULL, ?, 'work.discovered', '{\"source\":\"test\"}') RETURNING sequence")
+        .bind(EventId::new().to_string()).bind(work.id.to_string()).bind(work.created_at.unix_millis())
+        .fetch_one(&mut *transaction).await?;
+    assert_eq!(sequence, high_water + 1);
+    for (work_id, run_id, at, payload) in [
+        (WorkItemId::new(), None, 0, "{}"),
+        (other_work.id, Some(running.id), 0, "{}"),
+        (work.id, Some(RunId::new()), 0, "{}"),
+        (work.id, None, 0, "not JSON"),
+        (work.id, None, -1, "{}"),
+    ] {
+        assert!(sqlx::query("INSERT INTO events(id, work_item_id, run_id, occurred_at, kind, payload) VALUES (?, ?, ?, ?, 'work.discovered', ?)")
+            .bind(EventId::new().to_string()).bind(work_id.to_string()).bind(run_id.map(|id| id.to_string())).bind(at).bind(payload)
+            .execute(&mut *transaction).await.is_err());
+    }
+    let copied = sqlx::query("INSERT INTO stage_executions(id, run_id, execution_plan_revision_id, stage_kind, status, started_at, completed_at, simulation_summary, failure)
+        SELECT ?, run_id, execution_plan_revision_id, stage_kind, status, started_at, completed_at, simulation_summary, failure FROM stage_executions WHERE run_id = ?")
+        .bind(orynt_core::ids::StageExecutionId::new().to_string()).bind(running.id.to_string())
+        .execute(&mut *transaction).await?;
+    assert_eq!(copied.rows_affected(), 1);
+    assert_eq!(sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM stage_executions WHERE execution_plan_revision_id = ? AND stage_kind = 'triage'")
+        .bind(running_state.plan.id.to_string()).fetch_one(&mut *transaction).await?, 2);
+    transaction.rollback().await?;
+    assert_eq!(database.get_work_detail(work.id).await?, before);
+    database.close().await;
+
+    let reopened = Database::open(&path).await?;
+    assert_eq!(reopened.get_work_detail(work.id).await?, before);
+    assert_eq!(
+        sqlx::query_as::<_, StoredEvent>(event_query)
+            .fetch_all(&reopened.pool)
+            .await?,
+        events_before
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT seq FROM sqlite_sequence WHERE name = 'events'")
+            .fetch_one(&reopened.pool)
+            .await?,
+        high_water
+    );
+    reopened.close().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn execution_loads_only_the_requested_run_without_reading_events() -> TestResult {
+    let database = memory().await?;
+    let app = application(&database, None);
+    let work = app.create_work("Isolated execution", "").await?;
+    let other_work = app.create_work("Other Work", "").await?;
+    let old_run = app.start_simulated_run(work.id).await?;
+    app.execute_run_to_completion(work.id, old_run.id).await?;
+    let target = app.start_simulated_run(work.id).await?;
+    // Corruption in an unrelated execution or in Event projections must remain
+    // visible to UI reads, but execution must not load either projection.
+    sqlx::query("UPDATE stage_executions SET id = 'invalid-historical-id' WHERE run_id = ? AND stage_kind = 'triage'")
+        .bind(old_run.id.to_string()).execute(&database.pool).await?;
+    sqlx::query("UPDATE events SET payload = '{}' WHERE work_item_id = ?")
+        .bind(work.id.to_string())
+        .execute(&database.pool)
+        .await?;
+    assert!(matches!(
+        app.get_work_detail(work.id).await,
+        Err(ApplicationError::Repository(RepositoryError::Persistence(
+            _
+        )))
+    ));
+    let state = database.get_run_execution_state(work.id, target.id).await?;
+    assert_eq!(state.run, target);
+    assert_eq!(state.plan.run_id, target.id);
+    assert_eq!(state.plan.stages.len(), 8);
+    assert!(state.stages.is_empty());
+    for (work_id, run_id) in [(other_work.id, target.id), (work.id, RunId::new())] {
+        assert!(matches!(
+            database.get_run_execution_state(work_id, run_id).await,
+            Err(RepositoryError::NotFound("Run"))
+        ));
+    }
+    app.execute_run_to_completion(work.id, target.id).await?;
+    let completed = database.get_run_execution_state(work.id, target.id).await?;
+    assert_eq!(completed.run.status, RunStatus::Completed);
+    assert_eq!(completed.stages.len(), 8);
+    assert!(
+        completed
+            .stages
+            .iter()
+            .all(|stage| stage.run_id == target.id && stage.status == StageStatus::Completed)
+    );
+    assert!(matches!(
+        app.get_work_detail(work.id).await,
+        Err(ApplicationError::Repository(RepositoryError::Persistence(
+            _
+        )))
+    ));
     database.close().await;
     Ok(())
 }

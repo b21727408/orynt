@@ -53,6 +53,13 @@ pub struct RunDetail {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunExecutionState {
+    pub run: Run,
+    pub plan: ExecutionPlanRevision,
+    pub stages: Vec<StageExecution>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkDetail {
     pub work: WorkItem,
     pub runs: Vec<RunDetail>,
@@ -70,6 +77,11 @@ pub trait WorkRepository: Send + Sync {
         &self,
         id: WorkItemId,
     ) -> impl Future<Output = Result<WorkDetail, RepositoryError>> + Send;
+    fn get_run_execution_state(
+        &self,
+        work_item_id: WorkItemId,
+        run_id: RunId,
+    ) -> impl Future<Output = Result<RunExecutionState, RepositoryError>> + Send;
     fn create_run(
         &self,
         run: &Run,
@@ -197,12 +209,10 @@ impl<R: WorkRepository, E: StageExecutor, N: ChangeNotifier> WorkApplication<R, 
         work_item_id: WorkItemId,
         run_id: RunId,
     ) -> Result<(), ApplicationError> {
-        let detail = self.repository.get_work_detail(work_item_id).await?;
-        let detail = detail
-            .runs
-            .into_iter()
-            .find(|detail| detail.run.id == run_id)
-            .ok_or(RepositoryError::NotFound("Run"))?;
+        let detail = self
+            .repository
+            .get_run_execution_state(work_item_id, run_id)
+            .await?;
         if detail.run.status != RunStatus::Running || !detail.stages.is_empty() {
             return Err(RepositoryError::Conflict(
                 "Run execution has already started or finished.",
@@ -222,7 +232,7 @@ impl<R: WorkRepository, E: StageExecutor, N: ChangeNotifier> WorkApplication<R, 
                 result: None,
                 failure: None,
             };
-            // Uniqueness/conditional writes also prevent two coordinators claiming a stage.
+            // Conditional writes prevent two coordinators claiming the same planned stage.
             self.repository.begin_stage(&stage).await?;
             self.notify(&run);
             let outcome = self
